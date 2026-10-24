@@ -73,7 +73,7 @@
   SupplierBoardSections.hideHints();
   editing = card;
   $('supplierCardArrival').hidden=!card||card.is_draft||card.is_archived;
-  if(card)$('supplierCardArrival').href='/activities?arrival_card='+card.id;else $('supplierCardArrival').removeAttribute('href');
+  $('supplierCardArrival').dataset.cardId=card?.id||'';
   if($('supplierCardActivityBadges'))$('supplierCardActivityBadges').innerHTML=card?activityBadges(card):'';
   $('supplierCardDelete').hidden = !card;
   $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;

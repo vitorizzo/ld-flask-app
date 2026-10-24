@@ -161,7 +161,7 @@
   return `<fieldset class="activity-arrival-picker" data-arrival-picker="${key}"><legend>${name}</legend><div class="activity-arrival-picker-roles">${arrivalDirectory.roles.map(role=>`<label class="activity-checkbox"><input type="checkbox" data-arrival-role="${role.id}" ${defaults.includes(role.id)?'checked':''}> ${esc(role.name)}</label>`).join('')}</div><label class="form-label" for="arrival-min-${kind}-${audience}">Oppure includi i ruoli con peso minimo</label><select id="arrival-min-${kind}-${audience}" class="form-select" data-arrival-minimum><option value="">Nessuna soglia minima</option>${minimumOptions}</select><label class="form-label mt-2" for="arrival-user-search-${kind}-${audience}">Aggiungi singoli utenti</label><input id="arrival-user-search-${kind}-${audience}" class="form-control" data-arrival-user-search type="search" placeholder="Cerca nome utente"><div class="activity-arrival-users" data-arrival-users></div><small data-arrival-users-hint>${arrivalDirectory.users.length} utenti operativi mostrati; cerca per restringere.</small></fieldset>`;
  }
  function renderArrivalUserList(kind,audience,users) {
-  const key=`${kind}:${audience}`,picker=$(`[data-arrival-picker="${key}"]`);if(!picker)return;
+  const key=`${kind}:${audience}`,picker=document.querySelector(`[data-arrival-picker="${key}"]`);if(!picker)return;
   if(!arrivalSelectedUsers.has(key))arrivalSelectedUsers.set(key,new Map());
   const selectedUsers=arrivalSelectedUsers.get(key);
   picker.querySelector('[data-arrival-users]').innerHTML=users.map(user=>`<label class="activity-checkbox"><input type="checkbox" data-arrival-user="${user.id}" ${selectedUsers.has(user.id)?'checked':''}> ${esc(user.name)}</label>`).join('')||'<small>Nessun utente trovato.</small>';
@@ -195,7 +195,7 @@
   if(arrivalBusy||!sourceCard)return;arrivalControls(true);$('activityArrivalError').textContent='';const save=$('activityArrivalSave'),label=save.textContent;save.textContent='Invio attività…';
   try {
    const activities=[...$('activityArrivalTasks').querySelectorAll('[data-arrival-enabled]:checked')].map(toggle=>{
-    const kind=toggle.dataset.arrivalEnabled,readPicker=audience=>{const picker=$(`[data-arrival-picker="${kind}:${audience}"]`),users=arrivalSelectedUsers.get(`${kind}:${audience}`)||new Map(),minimum=picker.querySelector('[data-arrival-minimum]').value;return {role_ids:[...picker.querySelectorAll('[data-arrival-role]:checked')].map(item=>Number(item.dataset.arrivalRole)),user_ids:[...users.keys()],target_min_weight:minimum?Number(minimum):null};};
+    const kind=toggle.dataset.arrivalEnabled,readPicker=audience=>{const picker=document.querySelector(`[data-arrival-picker="${kind}:${audience}"]`),users=arrivalSelectedUsers.get(`${kind}:${audience}`)||new Map(),minimum=picker.querySelector('[data-arrival-minimum]').value;return {role_ids:[...picker.querySelectorAll('[data-arrival-role]:checked')].map(item=>Number(item.dataset.arrivalRole)),user_ids:[...users.keys()],target_min_weight:minimum?Number(minimum):null};};
     const assignees=readPicker('assignees'),recipients=readPicker('recipients');
     const task=toggle.closest('[data-arrival-task]'),attachment_ids=[...task.querySelectorAll('[data-arrival-attachment]:checked')].map(item=>/^\d+$/.test(item.dataset.arrivalAttachment)?Number(item.dataset.arrivalAttachment):item.dataset.arrivalAttachment);
     return {kind,...assignees,result_recipients:recipients,attachment_ids,...(kind==='custom_1'?{title:$('[data-arrival-custom-title]').value,description:$('[data-arrival-custom-description]').value}:{})};
@@ -221,7 +221,7 @@
    const user=event.target.closest('[data-arrival-user]');if(user){const picker=user.closest('[data-arrival-picker]'),key=picker.dataset.arrivalPicker,map=arrivalSelectedUsers.get(key)||new Map(),id=Number(user.dataset.arrivalUser),found=arrivalDirectory.users.find(item=>item.id===id);if(user.checked&&found)map.set(id,found);else map.delete(id);arrivalSelectedUsers.set(key,map);}
   });
   $('activityArrivalTasks')?.addEventListener('input',event=>{const input=event.target.closest('[data-arrival-user-search]');if(input){clearTimeout(input._arrivalTimer);input._arrivalTimer=setTimeout(()=>loadArrivalUsers(input),250);}});
-  $('activityArrivalTasks')?.addEventListener('input',event=>{if(event.target.matches('[data-arrival-custom-title],[data-arrival-custom-description]'))$('[data-arrival-enabled="custom_1"]').checked=true;});
+  $('activityArrivalTasks')?.addEventListener('input',event=>{if(event.target.matches('[data-arrival-custom-title],[data-arrival-custom-description]'))$('activityArrivalTasks').querySelector('[data-arrival-enabled="custom_1"]').checked=true;});
   $('activityModal').addEventListener('hide.bs.modal',event=>{if(busy)event.preventDefault();});
   $('activityModal').addEventListener('hidden.bs.modal',()=>{selected=null;activity=null;detailGeneration++;$('activityDetail').onclick=null;$('activityDetailRefresh').onclick=null;$('activityError').textContent='';});
   const composer=window.ActivityCreate?.init({api,onCreated:async(saved,context={})=>{if(!context.row&&!context.parent){params.delete('arrival');page=1;$('activityStatus').value='active';$('activitySearch').value='';history.replaceState({},'',location.pathname);}await load();if(context.row||context.parent)openDetail(context.row?.id||context.parent.id);}});

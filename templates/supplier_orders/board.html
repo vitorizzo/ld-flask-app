@@ -3,7 +3,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-sections4') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-sections5') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
@@ -26,7 +26,7 @@
    <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
    <label class="form-label mt-3" for="supplierCardReference">Riferimento ordine / documento</label><input class="form-control mb-3" id="supplierCardReference" maxlength="160">
    <a id="supplierCardEditOrder" class="btn btn-info mb-3" hidden>Modifica ordine e PDF</a>
-   <a id="supplierCardArrival" class="btn btn-info mb-3" hidden>Merce arrivata · invia attività</a>
+   <button id="supplierCardArrival" class="btn btn-info mb-3" type="button" hidden>Merce arrivata · invia attività</button>
    <div id="supplierCardActivityBadges" class="supplier-card-activity-status mb-3"></div>
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
    <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
@@ -60,6 +60,11 @@
   <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-danger" id="supplierCardDelete" type="button" hidden>Elimina scheda</button><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
  </div></div>
 </div>
+<div class="modal fade ld-modal ld-modal-standard supplier-arrival-modal" id="supplierArrivalModal" tabindex="-1" aria-labelledby="supplierArrivalTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+ <div class="modal-header"><h5 class="modal-title" id="supplierArrivalTitle">Merce arrivata</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+ <div class="modal-body"><p id="supplierArrivalSource"></p><p>Seleziona le attività da inviare. Per ognuna puoi scegliere incaricati, destinatari dell’esito e allegati.</p><div id="supplierArrivalTasks" class="supplier-arrival-tasks"></div><label for="supplierArrivalDate" class="form-label">Data ricezione</label><input id="supplierArrivalDate" type="date" class="form-control"><label class="activity-checkbox"><input id="supplierArrivalPartial" type="checkbox"> Consegna parziale</label><label for="supplierArrivalNote" class="form-label">Prodotti ricevuti / note</label><textarea id="supplierArrivalNote" class="form-control" rows="3" maxlength="2000" placeholder="Indica i prodotti o la parte di consegna ricevuta"></textarea><div id="supplierArrivalError" class="supplier-card-error" role="alert"></div></div>
+ <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierArrivalSave" type="button" class="btn btn-info">Conferma arrivo e invia attività</button></div>
+</div></div></div>
 <div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="supplierSectionsModal" tabindex="-1" aria-labelledby="supplierSectionsTitle" aria-hidden="true">
  <div class="modal-dialog"><div class="modal-content">
   <div class="modal-header"><h5 id="supplierSectionsTitle" class="modal-title">Configura sezioni</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
@@ -87,5 +92,6 @@
 <script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external1') }}"></script>
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
 <script src="{{ url_for('static', filename='js/supplier_board_sections.js', v=app_version ~ '-sections2') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-external3') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board_arrival.js', v=app_version ~ '-arrival1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-external4') }}"></script>
 {% endblock %}

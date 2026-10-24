@@ -10,7 +10,7 @@
 ## Allegati scheda e arrivi fornitori (2026-10-23)
 
 - `routes/supplier_orders.py` serializza gli allegati già presenti della scheda; `static/js/supplier_board.js` li mostra insieme al PDF ordine. `static/js/supplier_card_fields.js` e `static/css/supplier_board.css` mantengono leggibili nomi e collegamenti nel dialog di modifica.
-- `routes/activities.py` espone gli allegati caricati e il PDF ordine generato della scheda. Da “Merce arrivata”, `static/js/activities.js` permette selezioni per singola attività e la creazione di una attività personalizzata; `tools/activities.py` valida l’appartenenza, copia i contenuti in `ActivityAttachment` e include selezioni e descrizione nel controllo idempotenza. La modale separa visivamente le attività e riattiva i controlli anche quando la preparazione o l’invio falliscono. Nessuna migrazione.
+- `routes/activities.py` espone gli allegati caricati e il PDF ordine generato della scheda. Dalla bacheca, `static/js/supplier_board_arrival.js` apre “Merce arrivata” senza navigare alla pagina Attività; offre selezioni per attività, incaricati e file, oltre alla creazione di attività personalizzate. `tools/activities.py` verifica la scheda e copia i contenuti in `ActivityAttachment`. I selettori DOM della modale Attività usano query CSS, il submit recupera anche gli errori nella preparazione e la grafica distingue con colori le sezioni. Nessuna migrazione.
 
 ## Invio lotti e visibilità attività (2026-10-20)
 
