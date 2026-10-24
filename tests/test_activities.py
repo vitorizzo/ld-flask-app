@@ -11,7 +11,7 @@ from sqlalchemy import create_engine,text,inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice,SupplierBoardAttachment)
+from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice,SupplierBoardAttachment,SupplierBoardColumn)
 from routes.activities import activities_bp
 from tools.activity_photos import photo_path
 import test_supplier_board as board
@@ -31,7 +31,7 @@ class ActivityTests(unittest.TestCase):
         self.app.register_blueprint(activities_bp,url_prefix='/activities')
         login=LoginManager(self.app)
         login.user_loader(lambda value:db.session.get(User,int(value)))
-        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice]
+        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice,SupplierBoardColumn]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in names])
         db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30),
                             Role(id=4,name='Admin',weight=900),Role(id=5,name='Dev',weight=1000),Role(id=6,name='Responsabile',weight=50),Role(id=7,name='Altro ufficio',weight=40),Role(id=10,name='office',weight=40)])
@@ -43,6 +43,8 @@ class ActivityTests(unittest.TestCase):
         self.login(1)
         response=self.client.post('/supplier-orders/api/board/cards',json={'title':'Scarico Rossi','column_id':1,'reference':'DDT 123'})
         self.assertEqual(response.status_code,201,response.json);self.card=response.json['card']
+        db.session.add_all([SupplierBoardColumn(id=3,name='Da Caricare',order_index=2),SupplierBoardColumn(id=4,name='In Attesa dei lotti',order_index=3)])
+        db.session.commit()
 
     def tearDown(self):
         self.temp.cleanup();board.SupplierBoardTests.tearDown(self)
@@ -53,7 +55,8 @@ class ActivityTests(unittest.TestCase):
             session['_user_id']=str(user_id);session['_fresh']=True
 
     def arrival_body(self,**extra):
-        return dict(card_id=self.card['id'],revision=self.card['order_revision'],event_key='arrival-event-123',received_on='2026-10-14',partial=False,note='Prodotti ricevuti',**extra)
+        card=db.session.get(board.SupplierBoardCard,self.card['id'])
+        return dict(card_id=card.id,revision=card.order_revision,event_key='arrival-event-123',received_on='2026-10-14',partial=False,note='Prodotti ricevuti',**extra)
 
     def arrival(self,key='arrival-event-123',partial=False):
         body=self.arrival_body();body.update(event_key=key,partial=partial)
@@ -74,13 +77,18 @@ class ActivityTests(unittest.TestCase):
 
     def test_arrival_three_activities_idempotent_and_partial_separate(self):
         first=self.arrival()
+        card=db.session.get(board.SupplierBoardCard,self.card['id'])
+        self.assertEqual(card.column_id,4)
+        self.login(2)
         self.assertEqual(len(self.rows()),3)
+        self.login(1)
         self.assertEqual(self.client.post('/activities/api/supplier-arrivals',json=self.arrival_body()).json['arrival_id'],first)
         self.assertEqual(OperationalActivity.query.count(),3)
         changed=self.arrival_body();changed['note']='Different'
         self.assertEqual(self.client.post('/activities/api/supplier-arrivals',json=changed).status_code,409)
         self.assertNotEqual(self.arrival('second-arrival-123',True),first)
         self.assertEqual(OperationalActivity.query.count(),6)
+        self.login(2)
         self.assertTrue(any(row['source']['partial'] for row in self.rows()))
 
     def test_arrival_custom_activity_and_independent_card_attachments(self):
@@ -104,6 +112,17 @@ class ActivityTests(unittest.TestCase):
             ('check_goods','Controllare la merce',''),('custom_1','Preparare il reso','Usare le istruzioni allegate')])
         self.assertEqual([[item.filename for item in row.attachments] for row in activities],
                          [['scheda.png'],['ordine-fornitore.pdf','istruzioni.png']])
+        card=db.session.get(board.SupplierBoardCard,self.card['id'])
+        self.assertEqual(card.column_id,3)
+        self.login(2)
+        staff_detail=self.client.get(f'/activities/api/{activities[1].id}')
+        self.assertEqual(staff_detail.status_code,200)
+        visible_files=staff_detail.json['activity']['attachments']
+        self.assertEqual([item['filename'] for item in visible_files],['ordine-fornitore.pdf','istruzioni.png'])
+        downloaded=self.client.get(visible_files[0]['url'])
+        self.assertEqual(downloaded.status_code,200)
+        self.assertEqual(downloaded.data,b'%PDF-1.4 prova ordine')
+        self.login(1)
         replay=self.client.post('/activities/api/supplier-arrivals',json=body)
         self.assertEqual(replay.status_code,200,replay.json);self.assertTrue(replay.json['replayed'])
         self.assertEqual(ActivityAttachment.query.count(),3)
@@ -151,7 +170,7 @@ class ActivityTests(unittest.TestCase):
         skipped=self.act(row,'not_required','Prodotto senza lotto da tracciare').json['activity']
         self.assertEqual(skipped['status'],'not_required')
         self.assertEqual(self.act(skipped,'reopen','Riapri').status_code,403)
-        self.login(1);reopened=self.act(skipped,'reopen','Nuova verifica').json['activity']
+        self.login(7);reopened=self.act(skipped,'reopen','Nuova verifica').json['activity']
         self.assertEqual(reopened['cycle'],2);self.assertEqual(reopened['status'],'pending')
         goods=next(row for row in self.rows() if row['kind']=='check_goods')
         self.assertEqual(self.act(goods,'not_required','No').status_code,400)
@@ -164,7 +183,7 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(response.mimetype,'image/jpeg');self.assertTrue(response.data.startswith(b'\xff\xd8'))
         self.assertIn('private',response.headers['Cache-Control']);response.close()
         self.login(4);self.assertEqual(self.client.get(photo['url']).status_code,404)
-        self.login(2);done=self.act(uploaded,'complete').json['activity'];self.login(1)
+        self.login(2);done=self.act(uploaded,'complete').json['activity'];self.login(7)
         reopened=self.act(done,'reopen','Controllare un altro lotto').json['activity']
         self.assertEqual(self.act(reopened,'complete').status_code,400)
         self.assertEqual(self.client.delete(photo['url'],json={'revision':reopened['revision']}).status_code,400)
@@ -180,6 +199,7 @@ class ActivityTests(unittest.TestCase):
         uploaded=self.upload(row).json['activity']
         completed=self.act(uploaded,'complete').json['activity']
         self.assertEqual(completed['status'],'completed')
+        self.assertEqual(db.session.get(board.SupplierBoardCard,self.card['id']).column_id,3)
         for user_id in [2,3]:
             self.login(user_id)
             self.assertIn(completed['id'],[item['id'] for item in self.rows()])
@@ -237,7 +257,7 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(self.client.get('/activities/api?q=missing').json['total'],0)
         self.assertEqual(self.client.get('/activities/api?status=invalid').status_code,400)
         self.assertEqual(self.client.get('/activities/api?page=bad').status_code,400)
-        self.login(1);self.assertEqual(self.act(row,'cancel').status_code,400)
+        self.login(7);self.assertEqual(self.act(row,'cancel').status_code,400)
         cancelled=self.act(row,'cancel','Arrivo registrato per errore').json['activity']
         self.assertEqual(cancelled['status'],'cancelled');self.assertEqual(self.client.get('/activities/api/summary').json['count'],2)
         body=self.arrival_body();body['event_key']='different-key';body['partial']='yes'
@@ -283,6 +303,7 @@ class ActivityTests(unittest.TestCase):
         for changes in [dict(title=''),dict(user_ids=[]),dict(user_ids=[5]),dict(user_ids=[999]),dict(role_ids=[True]),dict(description='a'*5001)]:
             self.assertEqual(self.client.post('/activities/api',json={**body,**changes}).status_code,400)
         row=self.client.post('/activities/api',json=body).json['activity']
+        self.login(2)
         self.assertEqual(self.client.get('/activities/api?q=Magazzino').json['total'],1)
         self.login(3);self.assertEqual(self.rows(),[])
         self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
@@ -327,11 +348,13 @@ class ActivityTests(unittest.TestCase):
             self.assertEqual(self.upload(row).status_code,404)
         self.login(2);self.assertEqual([item['id'] for item in self.rows()],[row['id']])
         self.assertEqual(self.client.get('/activities/api/summary').json['count'],1)
-        for user_id in [1,7]:
-            self.login(user_id);self.assertEqual(len(self.rows()),1)
-            detail=self.client.get(f"/activities/api/{row['id']}").json['activity']
-            self.assertEqual(detail['users'],[dict(id=2,name='User2 Test')]);self.assertEqual(detail['roles'],[])
-            self.assertTrue(self.client.get('/activities/api/summary').json['sees_all'])
+        self.login(1)
+        self.assertEqual(self.rows(),[])
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
+        self.login(7);self.assertEqual(len(self.rows()),1)
+        detail=self.client.get(f"/activities/api/{row['id']}").json['activity']
+        self.assertEqual(detail['users'],[dict(id=2,name='User2 Test')]);self.assertEqual(detail['roles'],[])
+        self.assertTrue(self.client.get('/activities/api/summary').json['sees_all'])
 
     def test_exact_roles_not_all_roles_of_equal_or_higher_weight(self):
         body=dict(title='Solo ufficio',role_ids=[2],user_ids=[],result_recipients=dict(user_ids=[1]),client_key='exact-office-role-123')

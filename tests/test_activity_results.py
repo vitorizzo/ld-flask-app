@@ -22,6 +22,7 @@ class ResultTests(unittest.TestCase):
     act=ActivityTests.act
 
     def create(self, **extra):
+        self.login(7)
         body=dict(title='Inventario',role_ids=[],user_ids=[2],client_key='result-request-123',result_recipients=dict(user_ids=[6]))
         body.update(extra)
         result=self.client.post('/activities/api',json=body)
@@ -39,7 +40,7 @@ class ResultTests(unittest.TestCase):
     def test_event_recipients_read_only_and_unrelated_user_private(self):
         row=self.create()
         self.login(6)
-        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
         self.assertEqual(self.client.get('/activities/api/results').json['count'],1)
         completed=self.complete(row)
         self.login(6)
@@ -62,8 +63,8 @@ class ResultTests(unittest.TestCase):
         self.assertEqual({n.user_id for n in ActivityResultNotice.query.all()},{1,2,3,6,7,8})
         self.assertEqual(ActivityResultNotice.query.count(),12)
         self.assertEqual(self.act(done,'complete').status_code,400)
-        self.login(1);reopened=self.act(done,'reopen','Ripetere').json['activity']
-        self.login(6);self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
+        self.login(7);reopened=self.act(done,'reopen','Ripetere').json['activity']
+        self.login(6);self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
         self.assertEqual(self.client.get('/activities/api/results').json['count'],3)
         self.complete(reopened);self.assertEqual(ActivityResultNotice.query.count(),24)
         self.login(6);self.assertEqual(self.client.get('/activities/api/results').json['count'],4)
@@ -95,7 +96,7 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(file['purpose'],'instructions')
         self.assertEqual(self.multipart(body).status_code,200);self.assertEqual(ActivityAttachment.query.count(),1)
         self.assertEqual(self.multipart(body,filename='renamed.png').status_code,409)
-        self.login(6);self.assertEqual(self.client.get(file['url']).status_code,200)
+        self.login(6);self.assertEqual(self.client.get(file['url']).status_code,404)
         self.login(2);download=self.client.get(file['url']);self.assertEqual(download.status_code,200)
         self.assertIn('attachment',download.headers['Content-Disposition']);self.assertIn('no-store',download.headers['Cache-Control'])
         done=self.complete(row);self.login(6);self.assertEqual(self.client.get(file['url']).status_code,200)
@@ -108,7 +109,7 @@ class ResultTests(unittest.TestCase):
         response=upload(1);self.assertEqual(response.status_code,201,response.json)
         updated=response.json['activity'];self.assertEqual(upload(1).status_code,409)
         file=updated['attachments'][0];self.assertEqual(file['purpose'],'result')
-        done=self.complete(updated);self.login(1)
+        done=self.complete(updated);self.login(7)
         self.assertEqual(self.client.delete(file['url'],json=dict(revision=done['revision'])).status_code,400)
         reopened=self.act(done,'reopen','Rivedere').json['activity']
         self.assertEqual(self.client.delete(file['url'],json=dict(revision=reopened['revision'])).status_code,400)
@@ -149,7 +150,7 @@ class ResultTests(unittest.TestCase):
         self.assertIn('uq_activity_result_event_user',output.getvalue())
 
     def test_enqueue_failure_keeps_durable_result_and_cancellation_esito(self):
-        row=self.create();self.login(1)
+        row=self.create();self.login(7)
         with patch('tools.activity_results.enqueue_results',side_effect=RuntimeError('broker offline')):
             response=self.act(row,'cancel','Richiesta superata')
         self.assertEqual(response.status_code,200,response.json)

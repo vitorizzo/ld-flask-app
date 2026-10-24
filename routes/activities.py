@@ -83,7 +83,7 @@ def activity_list():
     total=len(roots);selected_roots=set(roots[(page-1)*30:page*30])
     ids=[i for i in parents if root_id(i) in selected_roots]
     rows=activity_query(current_user).filter(OperationalActivity.id.in_(ids)).order_by(OperationalActivity.created_at,OperationalActivity.id).all()
-    counts=dict(visible_query(current_user).with_entities(OperationalActivity.status,func.count(OperationalActivity.id)).group_by(OperationalActivity.status).all())
+    counts=dict(visible_query(current_user,include_results=True).with_entities(OperationalActivity.status,func.count(OperationalActivity.id)).group_by(OperationalActivity.status).all())
     return jsonify(ok=True,rows=[activity_data(row,current_user) for row in rows],counts=counts,total=total,page=page,pages=(total+29)//30,manager=manager(current_user),sees_all=sees_all(current_user))
 
 
@@ -308,7 +308,18 @@ def arrival():
     if not card or card.is_archived or card.is_draft: return error('Scheda non disponibile per un nuovo arrivo.',404)
     if type(payload.get('revision')) is not int or payload['revision']!=card.order_revision: return error('La scheda è cambiata. Riapri il nuovo arrivo.',409)
     body=dict(payload,event_key=key,note=note.strip(),partial=partial,_activity_specs=activity_specs)
-    try: result=create_arrival(card,body,current_user,received);db.session.commit()
+    try:
+        result=create_arrival(card,body,current_user,received)
+        selected_kinds={spec['kind'] for spec in activity_specs} if activity_specs is not None else set(('lots',))
+        destination_name='inattesadeilotti' if 'lots' in selected_kinds else 'dacaricare'
+        columns=SupplierBoardColumn.query.all()
+        destination=next((column for column in columns if ''.join((column.name or '').casefold().split())==destination_name),None)
+        if destination is None:
+            db.session.rollback()
+            return error('Impossibile spostare la scheda: manca la colonna «{}».'.format('In Attesa dei lotti' if 'lots' in selected_kinds else 'Da Caricare'),409)
+        card.column_id=destination.id
+        card.order_revision+=1
+        db.session.commit()
     except ValueError as exc: db.session.rollback();return error(str(exc),409)
     except IntegrityError:
         db.session.rollback();existing=SupplierArrival.query.filter_by(event_key=key).first()

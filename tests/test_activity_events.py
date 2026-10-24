@@ -27,7 +27,7 @@ class EventTests(unittest.TestCase):
     def notices(self,action):
         return ActivityResultNotice.query.join(ActivityEvent).filter(ActivityEvent.action==action).all()
 
-    def test_creation_claim_release_completion_notify_both_audiences(self):
+    def test_completion_notifies_only_result_audience(self):
         with patch('tools.activity_results.enqueue_results') as enqueue:
             row=self.create(user_ids=[2],result_recipients=dict(user_ids=[6]))
             enqueue.assert_called_once()
@@ -36,8 +36,9 @@ class EventTests(unittest.TestCase):
         row=self.act(row,'claim').json['activity']
         row=self.act(row,'release','Attendo materiale').json['activity']
         row=self.complete(row)
-        for action in ['claim','release','complete']:
+        for action in ['claim','release']:
             self.assertEqual({n.user_id for n in self.notices(action)},{2,6})
+        self.assertEqual({n.user_id for n in self.notices('complete')},{6})
         self.login(6)
         data=self.client.get('/activities/api/results').json
         self.assertEqual(data['count'],4)
@@ -45,6 +46,19 @@ class EventTests(unittest.TestCase):
         self.assertIn('Presa in carico',claim['message']);self.assertIn('User2 Test',claim['message'])
         self.assertIn('Conteggio verificato',data['rows'][0]['message'])
         self.assertFalse(self.detail(row).json['activity']['can_act'])
+
+    def test_staff_assignment_admin_result_and_dev_visibility_are_separate(self):
+        row=self.create(user_ids=[2],result_recipients=dict(role_ids=[4]))
+        self.assertEqual({n.user_id for n in self.notices('created')},{1,2})
+        self.login(2);self.assertEqual(self.detail(row).status_code,200)
+        self.login(1);self.assertEqual(self.detail(row).status_code,404)
+        self.login(7);self.assertEqual(self.detail(row).status_code,200)
+        self.assertNotIn(7,{n.user_id for n in self.notices('created')})
+        completed=self.complete(row)
+        self.assertEqual({n.user_id for n in self.notices('complete')},{1})
+        self.login(1);self.assertEqual(self.detail(completed).status_code,200)
+        self.login(7);self.assertEqual(self.detail(completed).status_code,200)
+        self.assertNotIn(7,{n.user_id for n in self.notices('complete')})
 
     def test_replay_conflict_failed_upload_and_read_do_not_emit(self):
         with patch('tools.activity_results.enqueue_results') as enqueue:
@@ -70,7 +84,7 @@ class EventTests(unittest.TestCase):
         self.assertEqual(self.client.delete(file['url'],json=dict(revision=row['revision'])).status_code,200)
         self.assertEqual(self.notices('files_added'),[])
         self.assertEqual(self.notices('file_removed'),[])
-        self.login(1);self.arrival()
+        self.login(1);self.arrival();self.login(2)
         lots=next(r for r in self.rows() if r['kind']=='lots')
         self.assertEqual({n.user_id for n in self.notices('created') if n.activity_id==lots['id']},{1,2,3,6,7,8,9})
         self.login(2);claimed=self.act(lots,'claim').json['activity']
@@ -92,8 +106,8 @@ class EventTests(unittest.TestCase):
         with patch('tools.activity_results.enqueue_results') as enqueue:
             self.assertEqual(self.act(current,'complete','Lotti inviati').status_code,200)
             enqueue.assert_called_once()
-        self.assertEqual({n.user_id for n in self.notices('complete') if n.activity_id==lots['id']},{1,2,3,6,7,8,9})
-        self.login(1);current=self.detail(row).json['activity']
+        self.assertEqual({n.user_id for n in self.notices('complete') if n.activity_id==lots['id']},{1,6,7,8,9})
+        self.login(7);current=self.detail(row).json['activity']
         self.assertEqual(self.act(current,'cancel','Annullamento richiesto').status_code,200)
         self.assertEqual({n.user_id for n in self.notices('cancel')},{2,9})
 
@@ -110,7 +124,7 @@ class EventTests(unittest.TestCase):
 
     def test_reopening_keeps_older_notices_without_access_to_new_cycle(self):
         row=self.complete(self.create(user_ids=[2],result_recipients=dict(user_ids=[6])))
-        self.login(1)
+        self.login(7)
         row=self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(row,result_recipients=dict(user_ids=[8]))).json['activity']
         row=self.act(row,'reopen','Altra verifica').json['activity']
         self.login(6)

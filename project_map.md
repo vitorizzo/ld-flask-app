@@ -1,3 +1,10 @@
+## Arrivo fornitori: colonne, allegati e destinatari attivitÃ  (2026-10-24)
+
+- `routes/activities.py` sposta la scheda in `In Attesa dei lotti` quando l'arrivo include l'attivitÃ  lotti, altrimenti in `Da Caricare`; la revisione scheda viene aggiornata nello stesso commit dell'arrivo.
+- `tools/activities.py` riserva la visibilitÃ  globale a Dev. Gli incaricati vedono le attivitÃ  aperte; i destinatari dell'esito (es. Admin) le vedono dopo la chiusura e ricevono la notifica di completamento. Dev continua a vedere tutto senza ricevere avvisi, salvo assegnazione esplicita.
+- `static/js/activities.js` chiude il dettaglio dopo il completamento e mostra `AttivitÃ  completata` per le attivitÃ  specifiche. Il dettaglio allegati Ã¨ verificato con un accesso Staff e download PDF.
+- Suite `test_activities`, `test_activity_events`, `test_activity_results`, `test_activity_tree`, `test_activity_create.mjs` e controllo sintassi JS verificati; nessuna migrazione.
+
 ## Diagnostica immagini MATRIXWS (2026-10-22)
 
 - Il servizio `147/1` estrae in asincrono 7928 righe di documenti vendita con intestazione/corpo, ma il filtro `B-CODCLI` provato in `TabellaCampi` non riduce il risultato; non usarlo come feed cliente finché non è verificato il tracciato Request e il mapping dei tipi fattura. Nessun documento è stato importato o mostrato nell'app. Dettagli in `status.md`.

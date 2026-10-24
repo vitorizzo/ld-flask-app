@@ -18,6 +18,8 @@ class TreeTests(unittest.TestCase):
     act=base.ActivityTests.act
 
     def create(self,title='Reso Roviano',**extra):
+        if not extra.get('parent_id'):
+            self.login(7)
         body=dict(title=title,user_ids=[2,6],result_recipients=dict(user_ids=[9]),client_key='request-'+title.replace(' ','-'))
         body.update(extra);response=self.client.post('/activities/api',json=body)
         self.assertIn(response.status_code,[200,201],response.json)
@@ -29,6 +31,7 @@ class TreeTests(unittest.TestCase):
     def detail(self,row):return self.client.get(f"/activities/api/{row['id']}")
 
     def complete(self,row):
+        self.login(7)
         with patch('tools.activity_results.enqueue_results'):
             response=self.act(row,'complete','Conteggio verificato')
         self.assertEqual(response.status_code,200,response.json)

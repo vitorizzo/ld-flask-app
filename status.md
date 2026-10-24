@@ -1,3 +1,10 @@
+## Bacheca fornitori e attività all'arrivo (2026-10-24)
+
+- Alla conferma `Merce arrivata`, la scheda passa a `In Attesa dei lotti` se è selezionato l'invio dei lotti; senza quell'attività passa a `Da Caricare`. Il cambio colonna aggiorna la revisione nello stesso commit dell'arrivo.
+- Corretto l'accesso: Staff assegnato vede l'attività aperta e gli allegati, incluso il PDF ordine copiato dalla scheda. Admin scelto come destinatario dell'esito non vede l'attività mentre è aperta e riceve la notifica di completamento. Dev vede tutte le attività per controllo, ma riceve notifiche solo se rientra nei destinatari configurati.
+- Il dettaglio si chiude dopo il completamento; le attività specifiche mostrano il pulsante `Attività completata`. Nessuna modifica a dati reali o migrazione.
+- Verifiche: `test_activities` 24, `test_activity_events` 8, `test_activity_results` 34 e `test_activity_tree` 13 passati; `node tests/test_activity_create.mjs`, `node --check` sui JS interessati e `git diff --check` passati. Il mock DOM del test attività ora espone `selectedOptions` come nel browser.
+
 ## Diagnostica immagini MATRIXWS (2026-10-22)
 
 - Prova servizio documenti vendita richiesta dall'utente: MATRIXWS `147`/schema `1`, versione `20260001`, ditta `1`, in lettura asincrona. Risposta batch HTTP 200/status `ok`, versione applicativa `2026.00.03`, `7928` righe con campi testata (`B-TIPO`, `B-SERIEBOLLA`, `B-NUMBOLLA`, `B-CODCLI`) e corpo (es. `B-DESCRIZ`, `B-QUANTITA`, `B-IMPORTO`). Il filtro `B-CODCLI = <codice>` in `TabellaCampi` ha restituito ancora tutte le `7928` righe (`747` combinazioni tipo/serie/numero, codici tipo `1,2,7,8,9,10`): questo formato non prova il filtro cliente e non va usato come feed cliente. La chiamata sincrona era andata in timeout dopo 60s; quella asincrona ha funzionato. Nessuna fattura salvata o mostrata in app; serve il tracciato Request effettivo di `147/1` per identificare filtro cliente e codici dei tipi fattura.

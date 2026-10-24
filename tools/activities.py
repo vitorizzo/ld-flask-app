@@ -21,8 +21,8 @@ def manager(user): return meets_minimum_role(user, "office")
 
 
 def sees_all(user):
-    """Only the named Admin and Dev roles can see every activity."""
-    return any(str(role.name or '').strip().casefold() in {'admin', 'dev', 'developer'}
+    """Dev can inspect every activity; Admin visibility follows task assignments."""
+    return any(str(role.name or '').strip().casefold() in {'dev', 'developer'}
                for role in (user.active_roles or []))
 
 
@@ -38,16 +38,9 @@ def assigned_query(user):
             ActivityTargetRole.activity_id == OperationalActivity.id, ActivityTargetRole.role_id.in_(ids)).exists()
         assigned_user = db.session.query(ActivityTargetUser.activity_id).filter(
             ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists()
-        result_role = db.session.query(ActivityResultRole.activity_id).filter(
-            ActivityResultRole.activity_id == OperationalActivity.id, ActivityResultRole.role_id.in_(ids)).exists()
-        result_user = db.session.query(ActivityResultUser.activity_id).filter(
-            ActivityResultUser.activity_id == OperationalActivity.id, ActivityResultUser.user_id == user.id).exists()
         query = query.filter(
             assigned_role | assigned_user | (OperationalActivity.owner_id == user.id)
-            | (OperationalActivity.status.in_(CLOSED) & (result_role | result_user))
             | (OperationalActivity.target_min_weight.isnot(None) & (target_minimum <= (user.max_role_weight or 0)))
-            | (OperationalActivity.status.in_(CLOSED) & OperationalActivity.result_min_weight.isnot(None) &
-               (func.coalesce(select(Role.weight).where(Role.id == OperationalActivity.result_min_role_id).scalar_subquery(), OperationalActivity.result_min_weight) <= (user.max_role_weight or 0)) )
         )
     return query
 
@@ -371,11 +364,17 @@ def create_arrival(card, payload, user, received_on):
     return arrival
 
 
-def notification_recipients(row):
-    """Snapshot assignees, outcome recipients and the direct parent's assignees."""
-    role_ids={t.role_id for t in row.targets} | {t.role_id for t in row.result_roles}
-    user_ids={t.user_id for t in row.user_targets} | {t.user_id for t in row.result_users}
-    weights=[w for w in (row.target_min_role.weight if row.target_min_role else row.target_min_weight,row.result_min_role.weight if row.result_min_role else row.result_min_weight) if w is not None]
+def notification_recipients(row, action=None):
+    """Notify assignees during work and result recipients when work is completed."""
+    outcome=action in ('complete','not_required')
+    if outcome:
+        role_ids={t.role_id for t in row.result_roles}
+        user_ids={t.user_id for t in row.result_users}
+        weights=[w for w in (row.result_min_role.weight if row.result_min_role else row.result_min_weight,) if w is not None]
+    else:
+        role_ids={t.role_id for t in row.targets} | {t.role_id for t in row.result_roles}
+        user_ids={t.user_id for t in row.user_targets} | {t.user_id for t in row.result_users}
+        weights=[w for w in (row.target_min_role.weight if row.target_min_role else row.target_min_weight,row.result_min_role.weight if row.result_min_role else row.result_min_weight) if w is not None]
     parent=db.session.get(OperationalActivity,row.parent_id) if row.parent_id else None
     if parent:
         role_ids.update(t.role_id for t in parent.targets)
@@ -394,7 +393,7 @@ def create_result_notices(row, extra_user_ids=()):
     """One durable notification per recipient and event, committed with the action."""
     with db.session.no_autoflush:
         event=row.events[-1]
-        recipients=notification_recipients(row) | set(extra_user_ids)
+        recipients=notification_recipients(row,event.action) | set(extra_user_ids)
         existing={n.user_id for n in row.result_notices if n.event is event or (event.id is not None and n.event_id==event.id)}
         for uid in recipients-existing:
             row.result_notices.append(ActivityResultNotice(event=event,user_id=uid,cycle=row.cycle or 1))

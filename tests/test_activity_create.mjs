@@ -8,6 +8,7 @@ class Element {
  set innerHTML(value){this.html=value;this.nodes=[...value.matchAll(/data-(role|user)="(\d+)"/g)].map(([,kind,id])=>{const n=new Element();n.dataset[kind]=id;return n;});}
  get innerHTML(){return this.html||'';}
  addEventListener(type,handler){(this.handlers[type]||=[]).push(handler);}
+ get selectedOptions(){return [{dataset:{}}];}
  fire(type){for(const fn of this.handlers[type]||[])fn({preventDefault(){}});}
  querySelectorAll(selector){if(selector.includes('[data-user]'))return this.nodes.filter(n=>n.dataset.user);if(selector.includes('[data-role]'))return this.nodes.filter(n=>n.dataset.role&&(!selector.includes(':checked')||n.checked));return [];}
  focus(){}

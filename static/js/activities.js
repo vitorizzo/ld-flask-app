@@ -50,7 +50,7 @@
  function renderDetail(note='') {
   const row=activity,active=['pending','in_progress'].includes(row.status),can=active&&row.can_act;
   const actions=[];
-  if(can){if(row.status==='pending')actions.push(['claim','Prendi in carico']);else actions.push(['release','Rilascia']);actions.push(['complete',row.kind==='lots'?'Conferma lotti inviati':row.kind==='check_goods'?'Merce controllata':row.kind==='manual'?'Completa attività':'Prodotti sistemati']);if(row.kind==='lots')actions.push(['not_required','Non necessario']);}
+  if(can){if(row.status==='pending')actions.push(['claim','Prendi in carico']);else actions.push(['release','Rilascia']);actions.push(['complete',row.kind==='lots'?'Conferma lotti inviati':row.kind==='check_goods'?'Merce controllata':row.kind==='manual'?'Completa attività':row.kind.startsWith('custom_')?'Attività completata':'Prodotti sistemati']);if(row.kind==='lots')actions.push(['not_required','Non necessario']);}
   if(row.can_manage)actions.push(active?['cancel','Annulla attività']:['reopen','Riapri attività']);
   const source=row.source;
   const structure=`<div class="activity-actions mb-3">${row.can_edit?'<button class="btn btn-info" type="button" data-edit-activity>Modifica attività</button>':''}${row.can_create_child?'<button class="btn btn-info" type="button" data-new-child>Crea sottoattività</button>':''}${row.parent_visible?`<button class="btn btn-outline-secondary" type="button" data-related-activity="${row.parent_id}">Apri attività principale</button>`:''}</div>${row.blocked_children?`<p class="activity-error">In attesa degli esiti di ${row.blocked_children} sottoattività. Il completamento è bloccato.</p>`:''}${row.children?.length?'<h6>Sottoattività</h6><ul>'+[...row.children].sort((a,b)=>Number(['completed','not_required'].includes(b.status))-Number(['completed','not_required'].includes(a.status))).map(child=>`<li>${['completed','not_required'].includes(child.status)?'📌 ':''}<button class="btn btn-link" data-related-activity="${child.id}" type="button">${esc(child.title)}</button> · ${esc(labels[child.status])}</li>`).join('')+'</ul>':''}`;
@@ -74,7 +74,7 @@
   if(['cancel','reopen','not_required'].includes(action)&&!note.trim()){$('activityError').textContent='Inserisci la motivazione.';return;}
   if(action==='cancel'&&!confirm('Annullare questa attività? La motivazione resterà nello storico.'))return;
   setDetailBusy(true);$('activityError').textContent='';
-  try {const result=await api(`/activities/api/${activity.id}/actions`,{method:'POST',body:JSON.stringify({action,note,revision:activity.revision})});activity=result.activity;renderDetail();await load();}
+  try {const result=await api(`/activities/api/${activity.id}/actions`,{method:'POST',body:JSON.stringify({action,note,revision:activity.revision})});activity=result.activity;await load();if(action==='complete'){bootstrap.Modal.getOrCreateInstance($('activityModal')).hide();return;}renderDetail();}
   catch(error){$('activityError').textContent=error.message;}
   finally{setDetailBusy(false);}
  }
